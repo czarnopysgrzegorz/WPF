@@ -1,2 +1,1 @@
-# WPF
-PROJEKT WPF
+# WPF-projo
