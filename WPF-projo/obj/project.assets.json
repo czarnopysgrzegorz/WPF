@@ -8,19 +8,19 @@
     "net8.0-windows7.0": []
   },
   "packageFolders": {
-    "C:\\Users\\Ernest\\.nuget\\packages\\": {}
+    "C:\\Users\\Grzegorz\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Ernest\\Downloads\\WPF-projo-master\\WPF-projo-master\\WPF-projo\\WPF-projo.csproj",
+      "projectUniqueName": "C:\\Users\\Grzegorz\\Desktop\\WPF2\\WPF\\WPF-projo\\WPF-projo.csproj",
       "projectName": "WPF-projo",
-      "projectPath": "C:\\Users\\Ernest\\Downloads\\WPF-projo-master\\WPF-projo-master\\WPF-projo\\WPF-projo.csproj",
-      "packagesPath": "C:\\Users\\Ernest\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Ernest\\Downloads\\WPF-projo-master\\WPF-projo-master\\WPF-projo\\obj\\",
+      "projectPath": "C:\\Users\\Grzegorz\\Desktop\\WPF2\\WPF\\WPF-projo\\WPF-projo.csproj",
+      "packagesPath": "C:\\Users\\Grzegorz\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\Grzegorz\\Desktop\\WPF2\\WPF\\WPF-projo\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\Ernest\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\Grzegorz\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0-windows"
@@ -86,7 +86,7 @@
             "privateAssets": "none"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.202/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

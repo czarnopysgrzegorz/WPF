@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "dgSpecHash": "fWSy+2RfiQ0=",
+  "dgSpecHash": "TGJwaH9HO+s=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Ernest\\Downloads\\WPF-projo-master\\WPF-projo-master\\WPF-projo\\WPF-projo.csproj",
+  "projectFilePath": "C:\\Users\\Grzegorz\\Desktop\\WPF2\\WPF\\WPF-projo\\WPF-projo.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\Ernest\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.26\\microsoft.netcore.app.ref.8.0.26.nupkg.sha512",
-    "C:\\Users\\Ernest\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.26\\microsoft.windowsdesktop.app.ref.8.0.26.nupkg.sha512",
-    "C:\\Users\\Ernest\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.26\\microsoft.aspnetcore.app.ref.8.0.26.nupkg.sha512",
-    "C:\\Users\\Ernest\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\8.0.26\\microsoft.netcore.app.host.win-x64.8.0.26.nupkg.sha512"
+    "C:\\Users\\Grzegorz\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.26\\microsoft.netcore.app.ref.8.0.26.nupkg.sha512",
+    "C:\\Users\\Grzegorz\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.26\\microsoft.windowsdesktop.app.ref.8.0.26.nupkg.sha512",
+    "C:\\Users\\Grzegorz\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.26\\microsoft.aspnetcore.app.ref.8.0.26.nupkg.sha512",
+    "C:\\Users\\Grzegorz\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\8.0.26\\microsoft.netcore.app.host.win-x64.8.0.26.nupkg.sha512"
   ],
   "logs": []
 }
