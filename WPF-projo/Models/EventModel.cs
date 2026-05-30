@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace WPF_projo.Models
@@ -9,6 +10,9 @@ namespace WPF_projo.Models
         private string _date = string.Empty;
         private string _shortDescription = string.Empty;
         private string _category = "Inne";
+        private int _rating;
+        private List<string> _comments = new();
+        private bool _isAttended;
 
         public string Title
         {
@@ -32,6 +36,24 @@ namespace WPF_projo.Models
         {
             get => _category;
             set { _category = value; OnPropertyChanged(); }
+        }
+
+        public int Rating
+        {
+            get => _rating;
+            set { _rating = Math.Clamp(value, 0, 5); OnPropertyChanged(); }
+        }
+
+        public List<string> Comments
+        {
+            get => _comments;
+            set { _comments = value ?? new List<string>(); OnPropertyChanged(); }
+        }
+
+        public bool IsAttended
+        {
+            get => _isAttended;
+            set { _isAttended = value; OnPropertyChanged(); }
         }
 
         public void ValidateAll()

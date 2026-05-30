@@ -16,6 +16,402 @@ namespace WPF_projo.ViewModels
         private readonly IEventRepository _repository;
 
         public ObservableCollection<EventModel> Events { get; }
+
+        public ICollectionView UpcomingView { get; }
+        public ICollectionView HistoryView { get; }
+
+        public IReadOnlyList<string> Categories { get; } = new[]
+        {
+            "Wszystkie", "Koncert", "Wystawa", "Warsztat", "Spektakl", "Inne"
+        };
+
+        // ================= FILTR / SORT =================
+        private string _searchText = string.Empty;
+        public string SearchText
+        {
+            get => _searchText;
+            set
+            {
+                if (SetProperty(ref _searchText, value))
+                {
+                    UpcomingView.Refresh();
+                    HistoryView.Refresh();
+                }
+            }
+        }
+
+        private string _selectedCategory = "Wszystkie";
+        public string SelectedCategory
+        {
+            get => _selectedCategory;
+            set
+            {
+                if (SetProperty(ref _selectedCategory, value))
+                {
+                    UpcomingView.Refresh();
+                    HistoryView.Refresh();
+                }
+            }
+        }
+
+        public IReadOnlyList<string> SortOptions { get; } = new[]
+        {
+            "Po dacie", "Alfabetycznie"
+        };
+
+        private string _selectedSort = "Po dacie";
+        public string SelectedSort
+        {
+            get => _selectedSort;
+            set
+            {
+                if (SetProperty(ref _selectedSort, value))
+                    ApplySort();
+            }
+        }
+
+        private bool _sortAscending = true;
+        public bool SortAscending
+        {
+            get => _sortAscending;
+            set
+            {
+                if (SetProperty(ref _sortAscending, value))
+                {
+                    OnPropertyChanged(nameof(SortDirectionLabel));
+                    ApplySort();
+                }
+            }
+        }
+
+        public string SortDirectionLabel => _sortAscending ? "↑" : "↓";
+
+        public int UpcomingCount => Events.Count(e => !e.IsAttended);
+        public int HistoryCount => Events.Count(e => e.IsAttended);
+
+        // ================= FORMULARZ =================
+        private EventModel _newEvent = new EventModel();
+        public EventModel NewEvent
+        {
+            get => _newEvent;
+            private set
+            {
+                if (_newEvent != null)
+                    _newEvent.ErrorsChanged -= OnNewEventErrorsChanged;
+
+                _newEvent = value;
+                _newEvent.ErrorsChanged += OnNewEventErrorsChanged;
+                OnPropertyChanged();
+            }
+        }
+
+        public IReadOnlyList<string> FormCategories { get; } = new[]
+        {
+            "Koncert", "Wystawa", "Warsztat", "Spektakl", "Inne"
+        };
+
+        private string _statusMessage = string.Empty;
+        public string StatusMessage
+        {
+            get => _statusMessage;
+            set => SetProperty(ref _statusMessage, value);
+        }
+
+        // ================= KOMENDY =================
+        public ICommand AddEventCommand { get; }
+        public ICommand DeleteEventCommand { get; }
+        public ICommand ShowDetailsCommand { get; }
+        public ICommand ClearFormCommand { get; }
+        public ICommand ToggleSortDirectionCommand { get; }
+        public ICommand MarkAttendedCommand { get; }
+
+        public MainViewModel() : this(new JsonEventRepository()) { }
+
+        public MainViewModel(IEventRepository repository)
+        {
+            _repository = repository;
+
+            Events = new ObservableCollection<EventModel>();
+            Events.CollectionChanged += (_, __) =>
+            {
+                OnPropertyChanged(nameof(UpcomingCount));
+                OnPropertyChanged(nameof(HistoryCount));
+            };
+
+            LoadFromRepository();
+
+            var upcomingSource = new CollectionViewSource { Source = Events };
+            var historySource = new CollectionViewSource { Source = Events };
+
+            UpcomingView = upcomingSource.View;
+            HistoryView = historySource.View;
+
+            UpcomingView.Filter = FilterUpcoming;
+            HistoryView.Filter = FilterHistory;
+
+            ApplySort();
+
+            AddEventCommand = new RelayCommand(AddEvent, _ => CanAddEvent());
+            DeleteEventCommand = new RelayCommand(DeleteEvent);
+            ShowDetailsCommand = new RelayCommand(ShowDetails);
+            ClearFormCommand = new RelayCommand(_ => ResetForm());
+            ToggleSortDirectionCommand = new RelayCommand(_ => SortAscending = !SortAscending);
+            MarkAttendedCommand = new RelayCommand(MarkAttended);
+            _newEvent.ErrorsChanged += OnNewEventErrorsChanged;
+        }
+
+        // ================= FILTER / SORT =================
+
+        private bool MatchesFilter(EventModel e)
+        {
+            if (!string.IsNullOrWhiteSpace(SearchText))
+            {
+                var q = SearchText.Trim();
+                var match = (e.Title?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
+                         || (e.ShortDescription?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
+                if (!match) return false;
+            }
+
+            if (!string.IsNullOrEmpty(SelectedCategory) && SelectedCategory != "Wszystkie")
+            {
+                if (!string.Equals(e.Category, SelectedCategory, StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private bool FilterUpcoming(object obj)
+        {
+            if (obj is not EventModel e) return false;
+            if (e.IsAttended) return false;
+            return MatchesFilter(e);
+        }
+
+        private bool FilterHistory(object obj)
+        {
+            if (obj is not EventModel e) return false;
+            if (!e.IsAttended) return false;
+            return MatchesFilter(e);
+        }
+
+        private void ApplySort()
+        {
+            bool byDate = _selectedSort == "Po dacie";
+
+            foreach (var view in new[] { UpcomingView, HistoryView })
+            {
+                if (view is ListCollectionView lcv)
+                {
+                    lcv.CustomSort = byDate
+                        ? (System.Collections.IComparer)new EventDateComparer(_sortAscending)
+                        : new EventTitleComparer(_sortAscending);
+                }
+                else
+                {
+                    view.SortDescriptions.Clear();
+                    view.SortDescriptions.Add(new SortDescription(
+                        byDate ? nameof(EventModel.Date) : nameof(EventModel.Title),
+                        _sortAscending ? ListSortDirection.Ascending : ListSortDirection.Descending));
+                    view.Refresh();
+                }
+            }
+        }
+
+        private sealed class EventDateComparer : System.Collections.IComparer
+        {
+            private static readonly string[] Formats = { "dd.MM.yyyy", "d.M.yyyy", "yyyy-MM-dd" };
+            private readonly int _direction;
+
+            public EventDateComparer(bool ascending) => _direction = ascending ? 1 : -1;
+
+            public int Compare(object? x, object? y)
+            {
+                var da = Parse((x as EventModel)?.Date);
+                var db = Parse((y as EventModel)?.Date);
+                return _direction * Nullable.Compare(da, db);
+            }
+
+            private static DateTime? Parse(string? s)
+            {
+                if (string.IsNullOrWhiteSpace(s)) return null;
+                if (DateTime.TryParseExact(s, Formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) return d;
+                if (DateTime.TryParse(s, CultureInfo.CurrentCulture, DateTimeStyles.None, out d)) return d;
+                return null;
+            }
+        }
+
+        private sealed class EventTitleComparer : System.Collections.IComparer
+        {
+            private readonly int _direction;
+            public EventTitleComparer(bool ascending) => _direction = ascending ? 1 : -1;
+
+            public int Compare(object? x, object? y)
+            {
+                var a = (x as EventModel)?.Title ?? string.Empty;
+                var b = (y as EventModel)?.Title ?? string.Empty;
+                return _direction * string.Compare(a, b, StringComparison.CurrentCultureIgnoreCase);
+            }
+        }
+
+        // ================= TRWAŁOŚĆ =================
+
+        private void LoadFromRepository()
+        {
+            try
+            {
+                var loaded = _repository.Load();
+                if (loaded.Count == 0)
+                {
+                    loaded.Add(new EventModel { Title = "Koncert Rockowy", Date = "20.06.2026", ShortDescription = "Wstęp wolny.", Category = "Koncert" });
+                    loaded.Add(new EventModel { Title = "Wystawa Sztuki", Date = "25.06.2026", ShortDescription = "Lokalni artyści.", Category = "Wystawa" });
+                    _repository.Save(loaded);
+                }
+
+                foreach (var e in loaded)
+                    Events.Add(e);
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = ex.Message;
+            }
+        }
+
+        private void PersistEvents()
+        {
+            try
+            {
+                _repository.Save(Events);
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = "Błąd zapisu danych: " + ex.Message;
+                MessageBox.Show(ex.Message, "Błąd zapisu", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // ================= LOGIKA =================
+
+        private bool CanAddEvent()
+        {
+            if (string.IsNullOrWhiteSpace(NewEvent.Title) || string.IsNullOrWhiteSpace(NewEvent.Date))
+                return false;
+            return !NewEvent.HasErrors;
+        }
+
+        private void AddEvent(object? obj)
+        {
+            try
+            {
+                NewEvent.ValidateAll();
+                if (NewEvent.HasErrors)
+                {
+                    StatusMessage = "Nie można dodać wydarzenia — popraw błędy w formularzu.";
+                    return;
+                }
+
+                Events.Add(new EventModel
+                {
+                    Title = NewEvent.Title,
+                    Date = NewEvent.Date,
+                    ShortDescription = NewEvent.ShortDescription,
+                    Category = string.IsNullOrWhiteSpace(NewEvent.Category) ? "Inne" : NewEvent.Category
+                });
+
+                PersistEvents();
+                OnPropertyChanged(nameof(UpcomingCount));
+                OnPropertyChanged(nameof(HistoryCount));
+                UpcomingView.Refresh();
+                HistoryView.Refresh();
+                StatusMessage = $"Dodano wydarzenie: {NewEvent.Title}.";
+                ResetForm();
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = "Wystąpił błąd podczas dodawania wydarzenia.";
+                MessageBox.Show(ex.Message, "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void DeleteEvent(object? obj)
+        {
+            try
+            {
+                if (obj is not EventModel eventToDelete) return;
+
+                var result = MessageBox.Show(
+                    $"Czy na pewno chcesz usunąć wydarzenie \"{eventToDelete.Title}\"?",
+                    "Potwierdzenie",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    Events.Remove(eventToDelete);
+                    PersistEvents();
+                    OnPropertyChanged(nameof(UpcomingCount));
+                    OnPropertyChanged(nameof(HistoryCount));
+                    UpcomingView.Refresh();
+                    HistoryView.Refresh();
+                    StatusMessage = $"Usunięto wydarzenie: {eventToDelete.Title}.";
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = "Wystąpił błąd podczas usuwania wydarzenia.";
+                MessageBox.Show(ex.Message, "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ShowDetails(object? obj)
+        {
+            try
+            {
+                if (obj is EventModel selectedEvent)
+                {
+                    var detailsWindow = new EventDetailsWindow(selectedEvent, () =>
+                    {
+                        PersistEvents();
+                        UpcomingView.Refresh();
+                        HistoryView.Refresh();
+                        OnPropertyChanged(nameof(UpcomingCount));
+                        OnPropertyChanged(nameof(HistoryCount));
+                    });
+                    detailsWindow.ShowDialog();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void MarkAttended(object? obj)
+        {
+            if (obj is not EventModel ev) return;
+            ev.IsAttended = !ev.IsAttended;
+            PersistEvents();
+            UpcomingView.Refresh();
+            HistoryView.Refresh();
+            OnPropertyChanged(nameof(UpcomingCount));
+            OnPropertyChanged(nameof(HistoryCount));
+        }
+
+        private void ResetForm()
+        {
+            NewEvent = new EventModel();
+        }
+
+        private void OnNewEventErrorsChanged(object? sender, DataErrorsChangedEventArgs e)
+        {
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+}
+
+        private readonly IEventRepository _repository;
+
+        public ObservableCollection<EventModel> Events { get; }
         public ICollectionView EventsView { get; }
 
         public IReadOnlyList<string> Categories { get; } = new[]

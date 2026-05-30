@@ -1,8 +1,175 @@
 ﻿<Window x:Class="WPF_projo.EventDetailsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Szczegóły Wydarzenia" Height="500" Width="400"
+        xmlns:local="clr-namespace:WPF_projo"
+        Title="Szczegóły Wydarzenia" Height="680" Width="520"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:StarColorConverter x:Key="StarColorConverter"/>
+
+        <Style x:Key="StarButton" TargetType="Button">
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="#F5F6FA">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,20,24,24">
+
+                <TextBlock Text="Karta wydarzenia" FontSize="20" FontWeight="Bold"
+                           Foreground="#2C3E50" Margin="0,0,0,20" HorizontalAlignment="Center"/>
+
+                <!-- Tytuł -->
+                <TextBlock Text="Tytuł:" Foreground="#34495E" Margin="0,0,0,5" FontWeight="SemiBold"/>
+                <TextBox x:Name="DetailsTitle"
+                         Text="{Binding Event.Title, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True, NotifyOnValidationError=True}"
+                         IsReadOnly="{Binding IsReadOnly}" Height="30" Padding="5" Margin="0,0,0,2"/>
+                <TextBlock Foreground="#C0392B" FontSize="11" Margin="0,0,0,8"
+                           Text="{Binding (Validation.Errors)/ErrorContent, ElementName=DetailsTitle}"/>
+
+                <!-- Data -->
+                <TextBlock Text="Data (dd.MM.yyyy):" Foreground="#34495E" Margin="0,0,0,5" FontWeight="SemiBold"/>
+                <TextBox x:Name="DetailsDate"
+                         Text="{Binding Event.Date, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True, NotifyOnValidationError=True}"
+                         IsReadOnly="{Binding IsReadOnly}" Height="30" Padding="5" Margin="0,0,0,2"/>
+                <TextBlock Foreground="#C0392B" FontSize="11" Margin="0,0,0,8"
+                           Text="{Binding (Validation.Errors)/ErrorContent, ElementName=DetailsDate}"/>
+
+                <!-- Opis -->
+                <TextBlock Text="Opis:" Foreground="#34495E" Margin="0,0,0,5" FontWeight="SemiBold"/>
+                <TextBox x:Name="DetailsDesc"
+                         Text="{Binding Event.ShortDescription, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True, NotifyOnValidationError=True}"
+                         IsReadOnly="{Binding IsReadOnly}" Height="80" Padding="5"
+                         TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,2"/>
+                <TextBlock Foreground="#C0392B" FontSize="11" Margin="0,0,0,12"
+                           Text="{Binding (Validation.Errors)/ErrorContent, ElementName=DetailsDesc}"/>
+
+                <!-- Tryb podglądu: Edytuj + Zamknij -->
+                <Grid Visibility="{Binding IsNotEditing, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Edytuj" Height="38" Margin="0,0,5,0"
+                            Background="#F39C12" Foreground="White" FontWeight="Bold"
+                            BorderThickness="0" Cursor="Hand" Command="{Binding EditCommand}"/>
+                    <Button Grid.Column="1" Content="Zamknij" Height="38" Margin="5,0,0,0"
+                            Background="#95A5A6" Foreground="White" FontWeight="Bold"
+                            BorderThickness="0" Cursor="Hand" Command="{Binding CloseCommand}"/>
+                </Grid>
+
+                <!-- Tryb edycji: Zapisz + Anuluj -->
+                <Grid Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Zapisz" Height="38" Margin="0,0,5,0"
+                            Background="#27AE60" Foreground="White" FontWeight="Bold"
+                            BorderThickness="0" Cursor="Hand" Command="{Binding SaveCommand}"/>
+                    <Button Grid.Column="1" Content="Anuluj" Height="38" Margin="5,0,0,0"
+                            Background="#E74C3C" Foreground="White" FontWeight="Bold"
+                            BorderThickness="0" Cursor="Hand" Command="{Binding CancelCommand}"/>
+                </Grid>
+
+                <Separator Margin="0,0,0,14"/>
+
+                <!-- Obecność -->
+                <Button Content="{Binding AttendanceButtonText}" Height="40" Margin="0,0,0,16"
+                        Background="#3498DB" Foreground="White" FontWeight="Bold" FontSize="14"
+                        BorderThickness="0" Cursor="Hand" Command="{Binding ToggleAttendedCommand}"/>
+
+                <Separator Margin="0,0,0,14"/>
+
+                <!-- Ocena -->
+                <TextBlock Text="Twoja ocena:" Foreground="#34495E" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <Button Style="{StaticResource StarButton}"
+                            Command="{Binding SetRatingCommand}" CommandParameter="1"
+                            Foreground="{Binding Rating, Converter={StaticResource StarColorConverter}, ConverterParameter=1}">★</Button>
+                    <Button Style="{StaticResource StarButton}"
+                            Command="{Binding SetRatingCommand}" CommandParameter="2"
+                            Foreground="{Binding Rating, Converter={StaticResource StarColorConverter}, ConverterParameter=2}">★</Button>
+                    <Button Style="{StaticResource StarButton}"
+                            Command="{Binding SetRatingCommand}" CommandParameter="3"
+                            Foreground="{Binding Rating, Converter={StaticResource StarColorConverter}, ConverterParameter=3}">★</Button>
+                    <Button Style="{StaticResource StarButton}"
+                            Command="{Binding SetRatingCommand}" CommandParameter="4"
+                            Foreground="{Binding Rating, Converter={StaticResource StarColorConverter}, ConverterParameter=4}">★</Button>
+                    <Button Style="{StaticResource StarButton}"
+                            Command="{Binding SetRatingCommand}" CommandParameter="5"
+                            Foreground="{Binding Rating, Converter={StaticResource StarColorConverter}, ConverterParameter=5}">★</Button>
+                    <TextBlock VerticalAlignment="Center" Margin="8,0,0,0" Foreground="#7F8C8D" FontSize="13">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="{Binding Rating, StringFormat={}{0}/5}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Rating}" Value="0">
+                                        <Setter Property="Text" Value="brak oceny"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+
+                <Separator Margin="0,12,0,14"/>
+
+                <!-- Komentarze -->
+                <TextBlock Text="Komentarze:" Foreground="#34495E" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                <!-- Lista komentarzy -->
+                <ItemsControl ItemsSource="{Binding Comments}" Margin="0,0,0,10">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#FAFAFA" BorderBrush="#DDE" BorderThickness="1"
+                                    CornerRadius="3" Padding="10,7" Margin="0,0,0,5">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding}" TextWrapping="Wrap"
+                                               Foreground="#333" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Content="✕" Width="26" Height="26"
+                                            Background="Transparent" BorderThickness="0"
+                                            Foreground="#E74C3C" FontWeight="Bold" Cursor="Hand"
+                                            Command="{Binding DataContext.DeleteCommentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Dodaj komentarz -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="80"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" Text="{Binding NewComment, UpdateSourceTrigger=PropertyChanged}"
+                             Height="32" Padding="6,4" Margin="0,0,8,0"
+                             ToolTip="Wpisz komentarz i kliknij Dodaj"/>
+                    <Button Grid.Column="1" Content="Dodaj" Height="32"
+                            Background="#27AE60" Foreground="White" FontWeight="Bold"
+                            BorderThickness="0" Cursor="Hand"
+                            Command="{Binding AddCommentCommand}"/>
+                </Grid>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>
+
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
