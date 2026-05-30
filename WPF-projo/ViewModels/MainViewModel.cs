@@ -38,12 +38,19 @@ namespace WPF_projo.ViewModels
             set { if (value) SetTab("Historia"); }
         }
 
+        public bool IsAllTab
+        {
+            get => _selectedTab == "Wszystkie";
+            set { if (value) SetTab("Wszystkie"); }
+        }
+
         private void SetTab(string tab)
         {
             if (_selectedTab == tab) return;
             _selectedTab = tab;
             OnPropertyChanged(nameof(IsUpcomingTab));
             OnPropertyChanged(nameof(IsHistoryTab));
+            OnPropertyChanged(nameof(IsAllTab));
             EventsView.Refresh();
         }
 
@@ -180,6 +187,7 @@ namespace WPF_projo.ViewModels
             {
                 if (!e.IsAttended) return false;
             }
+            // "Wszystkie" — brak filtra, pokazuje wszystko
 
             // Search filter
             if (!string.IsNullOrWhiteSpace(SearchText))

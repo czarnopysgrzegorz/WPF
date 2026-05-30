@@ -49,6 +49,8 @@
                                  GroupName="MainTabs" Style="{StaticResource TabButton}"/>
                     <RadioButton Content="Historia" IsChecked="{Binding IsHistoryTab}"
                                  GroupName="MainTabs" Style="{StaticResource TabButton}"/>
+                    <RadioButton Content="Wszystkie" IsChecked="{Binding IsAllTab}"
+                                 GroupName="MainTabs" Style="{StaticResource TabButton}"/>
                 </StackPanel>
 
                 <!-- Pasek filtrów -->
