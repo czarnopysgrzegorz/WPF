@@ -23,6 +23,30 @@ namespace WPF_projo.ViewModels
             "Wszystkie", "Koncert", "Wystawa", "Warsztat", "Spektakl", "Inne"
         };
 
+        // ================= ZAKŁADKI =================
+        private string _selectedTab = "Nadchodzące";
+
+        public bool IsUpcomingTab
+        {
+            get => _selectedTab == "Nadchodzące";
+            set { if (value) SetTab("Nadchodzące"); }
+        }
+
+        public bool IsHistoryTab
+        {
+            get => _selectedTab == "Historia";
+            set { if (value) SetTab("Historia"); }
+        }
+
+        private void SetTab(string tab)
+        {
+            if (_selectedTab == tab) return;
+            _selectedTab = tab;
+            OnPropertyChanged(nameof(IsUpcomingTab));
+            OnPropertyChanged(nameof(IsHistoryTab));
+            EventsView.Refresh();
+        }
+
         // ================= FILTR / SORT =================
         private string _searchText = string.Empty;
         public string SearchText
@@ -57,11 +81,25 @@ namespace WPF_projo.ViewModels
             set
             {
                 if (SetProperty(ref _selectedSort, value))
-                {
                     SortByDate = value == "Po dacie";
+            }
+        }
+
+        private bool _sortDescending = false;
+        public bool SortDescending
+        {
+            get => _sortDescending;
+            set
+            {
+                if (SetProperty(ref _sortDescending, value))
+                {
+                    OnPropertyChanged(nameof(SortDirectionLabel));
+                    ApplySort();
                 }
             }
         }
+
+        public string SortDirectionLabel => _sortDescending ? "↓ Malejąco" : "↑ Rosnąco";
 
         public int EventsCount => Events.Count;
 
@@ -98,22 +136,8 @@ namespace WPF_projo.ViewModels
         public ICommand DeleteEventCommand { get; }
         public ICommand ShowDetailsCommand { get; }
         public ICommand ClearFormCommand { get; }
-        public ICommand AuthCommand { get; }
-
-        private bool _isAuthenticated;
-        public bool IsAuthenticated
-        {
-            get => _isAuthenticated;
-            private set
-            {
-                if (SetProperty(ref _isAuthenticated, value))
-                {
-                    OnPropertyChanged(nameof(AuthButtonText));
-                }
-            }
-        }
-
-        public string AuthButtonText => IsAuthenticated ? "Wyloguj się" : "Zaloguj się";
+        public ICommand ToggleSortDirectionCommand { get; }
+        public ICommand ToggleAttendedCommand { get; }
 
         public MainViewModel() : this(new JsonEventRepository()) { }
 
@@ -134,23 +158,10 @@ namespace WPF_projo.ViewModels
             DeleteEventCommand = new RelayCommand(DeleteEvent);
             ShowDetailsCommand = new RelayCommand(ShowDetails);
             ClearFormCommand = new RelayCommand(_ => ResetForm());
-            AuthCommand = new RelayCommand(_ => ToggleAuth());
-            _newEvent.ErrorsChanged += OnNewEventErrorsChanged;
-        }
+            ToggleSortDirectionCommand = new RelayCommand(_ => SortDescending = !SortDescending);
+            ToggleAttendedCommand = new RelayCommand(ToggleAttended);
 
-        private void ToggleAuth()
-        {
-            if (Session.IsAuthenticated)
-            {
-                Session.Logout();
-                IsAuthenticated = false;
-            }
-            else
-            {
-                var win = new LoginWindow();
-                win.ShowDialog();
-                IsAuthenticated = Session.IsAuthenticated;
-            }
+            _newEvent.ErrorsChanged += OnNewEventErrorsChanged;
         }
 
         // ================= FILTER / SORT =================
@@ -159,6 +170,18 @@ namespace WPF_projo.ViewModels
         {
             if (obj is not EventModel e) return false;
 
+            // Tab filter
+            if (_selectedTab == "Nadchodzące")
+            {
+                var d = ParseDate(e.Date);
+                if (!d.HasValue || d.Value.Date < DateTime.Today) return false;
+            }
+            else if (_selectedTab == "Historia")
+            {
+                if (!e.IsAttended) return false;
+            }
+
+            // Search filter
             if (!string.IsNullOrWhiteSpace(SearchText))
             {
                 var q = SearchText.Trim();
@@ -167,6 +190,7 @@ namespace WPF_projo.ViewModels
                 if (!match) return false;
             }
 
+            // Category filter
             if (!string.IsNullOrEmpty(SelectedCategory) && SelectedCategory != "Wszystkie")
             {
                 if (!string.Equals(e.Category, SelectedCategory, StringComparison.OrdinalIgnoreCase))
@@ -176,6 +200,15 @@ namespace WPF_projo.ViewModels
             return true;
         }
 
+        private static DateTime? ParseDate(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            var formats = new[] { "dd.MM.yyyy", "d.M.yyyy", "yyyy-MM-dd" };
+            if (DateTime.TryParseExact(s, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) return d;
+            if (DateTime.TryParse(s, CultureInfo.CurrentCulture, DateTimeStyles.None, out d)) return d;
+            return null;
+        }
+
         private void ApplySort()
         {
             EventsView.SortDescriptions.Clear();
@@ -183,21 +216,23 @@ namespace WPF_projo.ViewModels
             if (EventsView is ListCollectionView lcv)
             {
                 lcv.CustomSort = SortByDate
-                    ? (System.Collections.IComparer)new EventDateComparer()
-                    : new EventTitleComparer();
+                    ? (System.Collections.IComparer)new EventDateComparer(_sortDescending)
+                    : new EventTitleComparer(_sortDescending);
                 return;
             }
 
-            // Fallback
+            var dir = _sortDescending ? ListSortDirection.Descending : ListSortDirection.Ascending;
             EventsView.SortDescriptions.Add(
-                new SortDescription(SortByDate ? nameof(EventModel.Date) : nameof(EventModel.Title),
-                    ListSortDirection.Ascending));
+                new SortDescription(SortByDate ? nameof(EventModel.Date) : nameof(EventModel.Title), dir));
             EventsView.Refresh();
         }
 
         private sealed class EventDateComparer : System.Collections.IComparer
         {
             private static readonly string[] Formats = { "dd.MM.yyyy", "d.M.yyyy", "yyyy-MM-dd" };
+            private readonly bool _descending;
+
+            public EventDateComparer(bool descending) => _descending = descending;
 
             public int Compare(object? x, object? y)
             {
@@ -205,7 +240,8 @@ namespace WPF_projo.ViewModels
                 var b = y as EventModel;
                 var da = Parse(a?.Date);
                 var db = Parse(b?.Date);
-                return Nullable.Compare(da, db);
+                int result = Nullable.Compare(da, db);
+                return _descending ? -result : result;
             }
 
             private static DateTime? Parse(string? s)
@@ -219,11 +255,16 @@ namespace WPF_projo.ViewModels
 
         private sealed class EventTitleComparer : System.Collections.IComparer
         {
+            private readonly bool _descending;
+
+            public EventTitleComparer(bool descending) => _descending = descending;
+
             public int Compare(object? x, object? y)
             {
                 var a = (x as EventModel)?.Title ?? string.Empty;
                 var b = (y as EventModel)?.Title ?? string.Empty;
-                return string.Compare(a, b, StringComparison.CurrentCultureIgnoreCase);
+                int result = string.Compare(a, b, StringComparison.CurrentCultureIgnoreCase);
+                return _descending ? -result : result;
             }
         }
 
@@ -236,8 +277,8 @@ namespace WPF_projo.ViewModels
                 var loaded = _repository.Load();
                 if (loaded.Count == 0)
                 {
-                    loaded.Add(new EventModel { Title = "Koncert Rockowy", Date = "20.03.2026", ShortDescription = "Wstęp wolny.", Category = "Koncert" });
-                    loaded.Add(new EventModel { Title = "Wystawa Sztuki", Date = "25.03.2026", ShortDescription = "Lokalni artyści.", Category = "Wystawa" });
+                    loaded.Add(new EventModel { Title = "Koncert Rockowy", Date = "15.09.2026", ShortDescription = "Wstęp wolny.", Category = "Koncert" });
+                    loaded.Add(new EventModel { Title = "Wystawa Sztuki", Date = "20.09.2026", ShortDescription = "Lokalni artyści.", Category = "Wystawa" });
                     _repository.Save(loaded);
                 }
 
@@ -308,13 +349,6 @@ namespace WPF_projo.ViewModels
             {
                 if (obj is not EventModel eventToDelete) return;
 
-                if (!Session.IsAuthenticated)
-                {
-                    MessageBox.Show("Brak uprawnień. Zaloguj się, aby usuwać wydarzenia.",
-                        "Brak uprawnień", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
                 var result = MessageBox.Show(
                     $"Czy na pewno chcesz usunąć wydarzenie \"{eventToDelete.Title}\"?",
                     "Potwierdzenie",
@@ -353,6 +387,14 @@ namespace WPF_projo.ViewModels
             {
                 MessageBox.Show(ex.Message, "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void ToggleAttended(object? obj)
+        {
+            if (obj is not EventModel ev) return;
+            ev.IsAttended = !ev.IsAttended;
+            PersistEvents();
+            EventsView.Refresh();
         }
 
         private void ResetForm()
